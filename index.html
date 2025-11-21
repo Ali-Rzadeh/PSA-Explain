@@ -6,7 +6,6 @@
     <title>Interactive Adsorption Model Explorer</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- MathJax for high-quality LaTeX rendering -->
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <!-- Chosen Palette: Calm Neutrals -->
     <!-- Application Structure Plan: A two-column SPA layout. A sticky sidebar provides navigation, which scrolls the main content area to the relevant section. This structure is ideal for a technical document, allowing users to easily jump between model components (Momentum, Energy, etc.) or explore linearly. An IntersectionObserver highlights the active section in the nav. Each model component is presented in tabs ("Equation", "Code", "Reasoning") to reduce clutter and allow users to focus on one aspect at a time. This is more usable than a long, monolithic document. -->
@@ -533,3 +532,4 @@ dTdt[1:N+1] = dTdt1[1:N+1] + dTdt2[1:N+1] + dTdt3[1:N+1]</pre>
     </script>
 </body>
 </html>
+
