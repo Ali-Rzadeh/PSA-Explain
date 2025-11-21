@@ -1,0 +1,1353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>PSA Adsorption Step – Governing Equations</title>
+
+  <!-- MathJax for LaTeX equations -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(', '\\)'], ['$', '$']],
+        displayMath: [['\\[', '\\]'], ['$$', '$$']]
+      }
+    };
+  </script>
+  <script async id="MathJax-script"
+          src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+
+  <!-- Basic styling + interactive UI -->
+  <style>
+    :root {
+      --bg: #0f172a;
+      --bg-elevated: #020617;
+      --bg-card: #020617;
+      --accent: #38bdf8;
+      --accent-soft: rgba(56, 189, 248, 0.12);
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --border: rgba(148, 163, 184, 0.35);
+      --radius-lg: 14px;
+      --radius-md: 10px;
+      --shadow-soft: 0 18px 45px rgba(15, 23, 42, 0.65);
+      --font-sans: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
+                   "Segoe UI", sans-serif;
+      --font-mono: "JetBrains Mono", "Fira Code", Menlo, Consolas, monospace;
+      --transition-fast: 150ms ease-out;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: var(--font-sans);
+      background: radial-gradient(circle at 0 0, #1d283a 0, #020617 45%, #000 100%);
+      color: var(--text);
+      display: flex;
+      justify-content: center;
+    }
+
+    .page {
+      display: grid;
+      grid-template-columns: 260px minmax(0, 1fr);
+      gap: 1.5rem;
+      width: min(1200px, 100vw - 2.5rem);
+      margin: 1.75rem 0 3rem;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      position: sticky;
+      top: 1.75rem;
+      align-self: flex-start;
+      background: linear-gradient(135deg, #020617, #020617f0);
+      border-radius: var(--radius-lg);
+      padding: 1.25rem 1.1rem 1.4rem;
+      border: 1px solid rgba(148, 163, 184, 0.35);
+      box-shadow: var(--shadow-soft);
+      backdrop-filter: blur(12px);
+    }
+
+    .sidebar h2 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 0.85rem;
+    }
+
+    .toc {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 1.2rem;
+      font-size: 0.9rem;
+    }
+
+    .toc li {
+      margin: 0.1rem 0;
+    }
+
+    .toc a {
+      color: var(--text);
+      text-decoration: none;
+      display: block;
+      padding: 0.25rem 0.4rem;
+      border-radius: 999px;
+      position: relative;
+      transition: background var(--transition-fast), color var(--transition-fast), transform 100ms ease-out;
+    }
+
+    .toc a::before {
+      content: "•";
+      color: var(--accent);
+      margin-right: 0.4rem;
+      opacity: 0.65;
+    }
+
+    .toc a:hover {
+      background: rgba(15, 23, 42, 0.9);
+      color: #f9fafb;
+      transform: translateX(2px);
+    }
+
+    .toc a.active {
+      background: var(--accent-soft);
+      color: #f9fafb;
+      font-weight: 500;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      padding: 0.25rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      margin-bottom: 0.75rem;
+      background: radial-gradient(circle at 0 0, #1d283a 0, #020617 65%, #000 100%);
+    }
+
+    .badge span.dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 999px;
+      background: var(--accent);
+      box-shadow: 0 0 12px rgba(56, 189, 248, 0.8);
+    }
+
+    .sidebar-footer {
+      font-size: 0.8rem;
+      color: var(--muted);
+      border-top: 1px solid rgba(148, 163, 184, 0.25);
+      padding-top: 0.6rem;
+      margin-top: 0.6rem;
+    }
+
+    /* Main content */
+    main {
+      background: linear-gradient(155deg, rgba(15, 23, 42, 0.96), rgba(12, 10, 34, 0.98));
+      border-radius: var(--radius-lg);
+      padding: 1.6rem 1.6rem 2.4rem;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      box-shadow: var(--shadow-soft);
+      position: relative;
+      overflow: hidden;
+    }
+
+    main::before {
+      content: "";
+      position: absolute;
+      inset: -40%;
+      background:
+        radial-gradient(circle at top left, rgba(56,189,248,0.09), transparent 55%),
+        radial-gradient(circle at bottom right, rgba(59,130,246,0.08), transparent 55%);
+      opacity: 0.9;
+      pointer-events: none;
+      z-index: -1;
+    }
+
+    header.main-header {
+      margin-bottom: 1.4rem;
+    }
+
+    header.main-header h1 {
+      margin: 0 0 0.4rem;
+      font-size: 1.6rem;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    header.main-header h1 span.highlight {
+      background: linear-gradient(120deg, #38bdf8, #a855f7);
+      -webkit-background-clip: text;
+      color: transparent;
+    }
+
+    header.main-header p.subtitle {
+      margin: 0;
+      font-size: 0.93rem;
+      color: var(--muted);
+    }
+
+    .chip-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.45rem;
+      margin-top: 0.7rem;
+      font-size: 0.78rem;
+    }
+
+    .chip {
+      padding: 0.22rem 0.55rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: rgba(15, 23, 42, 0.95);
+    }
+
+    .chip svg {
+      width: 12px;
+      height: 12px;
+      stroke: var(--accent);
+    }
+
+    section.card {
+      background: rgba(15, 23, 42, 0.96);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--border);
+      margin-bottom: 0.9rem;
+      overflow: hidden;
+      position: relative;
+      transition: border-color var(--transition-fast), transform 120ms ease-out, box-shadow 120ms ease-out;
+    }
+
+    section.card:hover {
+      border-color: rgba(56, 189, 248, 0.7);
+      transform: translateY(-1px);
+      box-shadow: 0 14px 32px rgba(15, 23, 42, 0.8);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.85rem 1rem;
+      cursor: pointer;
+      background: linear-gradient(90deg, rgba(15, 23, 42, 0.97), rgba(15, 23, 42, 0.92));
+    }
+
+    .card-header-left {
+      display: flex;
+      flex-direction: column;
+      gap: 0.25rem;
+    }
+
+    .card-title {
+      font-size: 0.98rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    .card-title span.badge-mini {
+      font-size: 0.7rem;
+      padding: 0.1rem 0.45rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      color: var(--muted);
+    }
+
+    .card-subtitle {
+      font-size: 0.78rem;
+      color: var(--muted);
+    }
+
+    .card-toggle-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      color: var(--muted);
+      background: radial-gradient(circle at 40% 0, rgba(56,189,248,0.25), rgba(15,23,42,1));
+      transition: transform var(--transition-fast), background var(--transition-fast);
+    }
+
+    section.card.collapsed .card-toggle-icon {
+      transform: rotate(-90deg);
+      background: radial-gradient(circle at 40% 100%, rgba(56,189,248,0.18), rgba(15,23,42,1));
+    }
+
+    .card-body {
+      padding: 0.75rem 1.05rem 0.9rem;
+      border-top: 1px solid rgba(15, 23, 42, 1);
+      max-height: 1200px;
+      overflow: hidden;
+      transition: max-height 220ms ease-out, opacity 160ms ease-out;
+    }
+
+    section.card.collapsed .card-body {
+      max-height: 0;
+      opacity: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      border-top: none;
+    }
+
+    p {
+      font-size: 0.9rem;
+      margin: 0.3rem 0 0.35rem;
+    }
+
+    ul {
+      margin: 0.3rem 0 0.45rem 1.2rem;
+      padding: 0;
+      font-size: 0.9rem;
+    }
+
+    .equation {
+      text-align: center;
+      margin: 0.7rem auto 0.4rem;
+      padding: 0.45rem 0.25rem 0.35rem;
+      border-radius: 10px;
+      background: rgba(15, 23, 42, 0.9);
+      border: 1px dashed rgba(148, 163, 184, 0.35);
+    }
+
+    .equation .eq-number {
+      display: block;
+      text-align: right;
+      font-size: 0.75rem;
+      color: var(--muted);
+      margin-top: 0.15rem;
+    }
+
+    pre {
+      background: radial-gradient(circle at 0 0, #020617 0, #020617 45%, #020617 100%);
+      padding: 0.7rem 0.8rem;
+      border-radius: 10px;
+      border: 1px solid rgba(30, 64, 175, 0.7);
+      overflow-x: auto;
+      font-size: 0.82rem;
+      font-family: var(--font-mono);
+      margin: 0.4rem 0 0.5rem;
+      position: relative;
+    }
+
+    code {
+      font-family: var(--font-mono);
+    }
+
+    .code-header {
+      position: absolute;
+      top: 0.45rem;
+      right: 0.45rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+
+    .code-header button {
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--muted);
+      font-size: 0.7rem;
+      padding: 0.1rem 0.45rem;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      transition: background var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
+    }
+
+    .code-header button:hover {
+      color: #f9fafb;
+      background: rgba(15, 23, 42, 1);
+      border-color: rgba(56, 189, 248, 0.9);
+    }
+
+    .code-block.hidden {
+      display: none;
+    }
+
+    .tag-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.3rem;
+      font-size: 0.78rem;
+    }
+
+    .tag {
+      padding: 0.1rem 0.4rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      color: var(--muted);
+    }
+
+    .pill-ref {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.3rem;
+      font-size: 0.78rem;
+      padding: 0.25rem 0.5rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.4);
+      background: rgba(15, 23, 42, 0.95);
+      color: var(--muted);
+      margin: 0.15rem 0;
+    }
+
+    .pill-ref span {
+      color: var(--accent);
+      font-size: 0.7rem;
+    }
+
+    .ref-list {
+      font-size: 0.83rem;
+      color: var(--muted);
+      margin-top: 0.25rem;
+      padding-left: 1.0rem;
+    }
+
+    .ref-list li {
+      margin-bottom: 0.15rem;
+    }
+
+    .refs-section {
+      margin-top: 0.4rem;
+      font-size: 0.85rem;
+    }
+
+    .inline-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.25rem;
+      border-radius: 999px;
+      border: 1px solid rgba(148, 163, 184, 0.5);
+      padding: 0.05rem 0.35rem;
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-left: 0.3rem;
+    }
+
+    .inline-pill span {
+      color: var(--accent);
+    }
+
+    /* Tooltip (for small explanations) */
+    .tooltip {
+      position: relative;
+      cursor: help;
+      border-bottom: 1px dotted rgba(148, 163, 184, 0.7);
+    }
+
+    .tooltip-text {
+      visibility: hidden;
+      opacity: 0;
+      position: absolute;
+      left: 0;
+      top: 120%;
+      background: #020617;
+      color: var(--text);
+      padding: 0.4rem 0.5rem;
+      border-radius: 8px;
+      border: 1px solid rgba(148, 163, 184, 0.7);
+      font-size: 0.75rem;
+      width: max-content;
+      max-width: 260px;
+      z-index: 10;
+      transition: opacity 120ms ease-out, transform 120ms ease-out;
+      transform: translateY(4px);
+    }
+
+    .tooltip:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Small screen */
+    @media (max-width: 900px) {
+      .page {
+        grid-template-columns: minmax(0, 1fr);
+        margin-top: 1.1rem;
+      }
+      .sidebar {
+        position: static;
+        order: -1;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <!-- Sidebar / TOC -->
+    <aside class="sidebar">
+      <div class="badge">
+        <span class="dot"></span>
+        <span>PSA model equations</span>
+      </div>
+      <h2>Sections</h2>
+      <ul class="toc" id="toc">
+        <li><a href="#sec-variables">1. Variables &amp; Scaling</a></li>
+        <li><a href="#sec-pressure">2. Pressure (Overall Mass)</a></li>
+        <li><a href="#sec-component">3. Mole Fraction (Component)</a></li>
+        <li><a href="#sec-ldf">4. LDF Solid Mass Transfer</a></li>
+        <li><a href="#sec-energy">5. Energy Balance</a></li>
+        <li><a href="#sec-ergun">6. Ergun &amp; Velocity</a></li>
+        <li><a href="#sec-isotherm">7. Isotherm</a></li>
+        <li><a href="#sec-numerics">8. Numerics &amp; BCs</a></li>
+      </ul>
+
+      <div class="sidebar-footer">
+        Click any card header to expand/collapse, and use the
+        <span class="inline-pill"><span>≡</span> code</span> button
+        to reveal the corresponding Python snippet.
+      </div>
+    </aside>
+
+    <!-- Main content -->
+    <main>
+      <header class="main-header">
+        <h1>
+          Governing Equations for
+          <span class="highlight">func_adsorption</span>
+        </h1>
+        <p class="subtitle">
+          Non-isothermal 1D PSA adsorption step with Ergun pressure drop, axial dispersion,
+          LDF mass transfer, and energy balance.
+        </p>
+
+        <div class="chip-row">
+          <div class="chip">
+            <!-- tiny icon -->
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M4 7h16M4 12h10M4 17h7" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Equations
+          </div>
+          <div class="chip">
+            <svg viewBox="0 0 24 24" fill="none">
+              <path d="M5 7h14v10H5z" stroke-width="1.5" stroke-linejoin="round"/>
+              <path d="M9 9h6M9 12h3" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Code mapping
+          </div>
+          <div class="chip">
+            <svg viewBox="0 0 24 24" fill="none">
+              <circle cx="12" cy="12" r="8" stroke-width="1.5"/>
+              <path d="M12 8v4l2.5 2.5" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            Dimensionless formulation
+          </div>
+        </div>
+      </header>
+
+      <!-- 1. Variables & scaling -->
+      <section class="card" id="sec-variables">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              1. Variables &amp; Dimensionless Groups
+              <span class="badge-mini">Scaling &amp; parameters</span>
+            </div>
+            <div class="card-subtitle">
+              How the code non-dimensionalises space, time, pressure, temperature, and loadings.
+            </div>
+          </div>
+          <div class="card-toggle-icon">&#9662;</div>
+        </div>
+        <div class="card-body">
+          <p>Dimensionless space and time:</p>
+          <div class="equation">
+            \[
+              z^* = \frac{z}{L}, \quad 0 \le z^* \le 1,
+              \qquad
+              t^* = \frac{v_0}{L} t
+            \]
+            <span class="eq-number">(1.1)</span>
+          </div>
+          <p>Dimensionless pressure, temperature, and solid loadings:</p>
+          <div class="equation">
+            \[
+              P^* = \frac{P}{P_0}, \quad
+              T^* = \frac{T}{T_0}, \quad
+              y = y_1 \;\; (\text{CO}_2\;\text{mole fraction}),
+            \]
+            \[
+              x_i = \frac{q_i}{q_{s0}}, \quad i = 1,2
+            \]
+            <span class="eq-number">(1.2)</span>
+          </div>
+          <p>
+            In the code, <code>P</code>, <code>T</code>, <code>y</code>, <code>x1</code>, <code>x2</code>
+            are these dimensionless variables, and the grid spacing is:
+          </p>
+
+          <pre class="code-block" data-code-id="code-variables">
+<code>dz = 1.0 / N</code>
+<div class="code-header">
+  <span>Python</span>
+  <button class="toggle-code-btn" data-target="code-variables">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <div class="tag-row">
+            <span class="tag">Non-dimensionalisation</span>
+            <span class="tag">Packed bed PSA</span>
+          </div>
+
+          <h4>Key dimensionless groups</h4>
+
+          <p><strong>Axial dispersion &amp; Peclet number</strong></p>
+          <pre class="code-block hidden" data-code-id="code-pe">
+<code>D_l = 0.7*D_m + v_0*r_p
+Pe  = v_0*L/D_l</code>
+<div class="code-header">
+  <span>Pe &amp; D<sub>l</sub></span>
+  <button class="toggle-code-btn" data-target="code-pe">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+          <div class="equation">
+            \[
+              D_{\text{ax}} \approx 0.7D_m + v_0 r_p,
+              \qquad
+              \mathrm{Pe} = \frac{v_0 L}{D_{\text{ax}}}
+            \]
+            <span class="eq-number">(1.3)</span>
+          </div>
+
+          <p><strong>Gas molar concentration</strong> (called <code>ro_g</code> in code):</p>
+          <div class="equation">
+            \[
+              c_g = \frac{P}{R T}
+              = \frac{P^* P_0}{R T^* T_0}
+            \]
+            <span class="eq-number">(1.4)</span>
+          </div>
+
+          <p><strong>Solid/gas capacity ratio</strong> \(\phi\):</p>
+          <pre class="code-block hidden" data-code-id="code-phi">
+<code>phi = R*T_0*q_s0*(1-epsilon)/epsilon/P_0</code>
+<div class="code-header">
+  <span>φ</span>
+  <button class="toggle-code-btn" data-target="code-phi">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <div class="equation">
+            \[
+              \phi = \frac{(1-\varepsilon) q_{s0} R T_0}{\varepsilon P_0}
+            \]
+            <span class="eq-number">(1.5)</span>
+          </div>
+
+          <p>
+            \(\phi\) measures how strongly pressure couples to changes in adsorbed loading
+            (solid storage vs. gas compressibility).
+          </p>
+
+          <p><strong>Reference molar flux</strong>:</p>
+          <pre class="code-block hidden" data-code-id="code-ndot">
+<code>ndot_0 = P_0/R/T_0 * v_0</code>
+<div class="code-header">
+  <span>ṅ₀</span>
+  <button class="toggle-code-btn" data-target="code-ndot">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+          <div class="equation">
+            \[
+              \dot n_0 = \frac{P_0}{R T_0} v_0
+            \]
+            <span class="eq-number">(1.6)</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. Pressure equation -->
+      <section class="card" id="sec-pressure">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              2. Pressure Equation
+              <span class="badge-mini">Overall mass balance</span>
+            </div>
+            <div class="card-subtitle">
+              Global molar balance written in terms of dimensionless pressure \(P\).
+            </div>
+          </div>
+          <div class="card-toggle-icon">&#9662;</div>
+        </div>
+        <div class="card-body">
+          <p>Dimensional overall molar balance:</p>
+          <div class="equation">
+            \[
+              \varepsilon \frac{\partial c_g}{\partial t}
+              + (1-\varepsilon)\sum_{i=1}^2 \frac{\partial q_i}{\partial t}
+              + \frac{\partial (c_g v)}{\partial z} = 0
+            \]
+            <span class="eq-number">(2.1)</span>
+          </div>
+
+          <p>With \(c_g = P/(R T)\), \(q_i = q_{s0} x_i\) and after scaling, the code implements:</p>
+
+          <div class="equation">
+            \[
+              \boxed{
+              \frac{\partial P}{\partial t}
+              =
+              - T \frac{\partial}{\partial z}\!\left(\frac{P v}{T}\right)
+              - \phi T \left(\frac{\partial x_1}{\partial t} + \frac{\partial x_2}{\partial t}\right)
+              + \frac{P}{T}\frac{\partial T}{\partial t}
+              }
+            \]
+            <span class="eq-number">(2.2)</span>
+          </div>
+
+          <pre class="code-block hidden" data-code-id="code-pressure">
+<code># convective term
+dPdt1[1:N+1] = -T[1:N+1] * (PvT[1:N+1] - PvT[0:N]) / dz
+
+# sorption storage term
+dPdt2[1:N+1] = -phi*T[1:N+1] * (dx1dt[1:N+1] + dx2dt[1:N+1])
+
+# compressibility / temperature term
+dPdt3[1:N+1] = P[1:N+1] * dTdt[1:N+1] / T[1:N+1]
+
+dPdt[1:N+1] = dPdt1[1:N+1] + dPdt2[1:N+1] + dPdt3[1:N+1]</code>
+<div class="code-header">
+  <span>∂P/∂t</span>
+  <button class="toggle-code-btn" data-target="code-pressure">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <div class="refs-section">
+            <div class="pill-ref">
+              <span>Ref</span> Ruthven (1984), Farooq &amp; Ruthven (1990)
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. Component / y equation -->
+      <section class="card" id="sec-component">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              3. Mole Fraction Equation
+              <span class="badge-mini">Component balance for \(y\)</span>
+            </div>
+            <div class="card-subtitle">
+              Axial dispersion + convection + sorption coupling for CO₂ mole fraction.
+            </div>
+          </div>
+          <div class="card-toggle-icon">&#9662;</div>
+        </div>
+        <div class="card-body">
+          <p>Dimensional component balance for CO₂:</p>
+          <div class="equation">
+            \[
+              \varepsilon \frac{\partial (c_g y)}{\partial t}
+              + (1-\varepsilon)\frac{\partial q_1}{\partial t}
+              + \frac{\partial N_1}{\partial z} = 0
+            \]
+            <span class="eq-number">(3.1)</span>
+          </div>
+          <p>with axial flux</p>
+          <div class="equation">
+            \[
+              N_1 = c_g v y
+              - \varepsilon D_{\text{ax}}\frac{\partial (c_g y)}{\partial z}.
+            \]
+            <span class="eq-number">(3.2)</span>
+          </div>
+
+          <p>
+            After combining with the overall balance and nondimensionalising, the equation for
+            mole fraction \(y\) (what the code implements) is:
+          </p>
+
+          <div class="equation">
+            \[
+              \begin{aligned}
+              \frac{\partial y}{\partial t}
+              = \;& \frac{1}{\mathrm{Pe}}
+                    \left[
+                      \frac{\partial^2 y}{\partial z^2}
+                      + \frac{\partial y}{\partial z} \frac{\partial \ln P}{\partial z}
+                      - \frac{\partial y}{\partial z} \frac{\partial \ln T}{\partial z}
+                    \right] \\
+                &- \frac{T}{P}
+                    \left(
+                      \frac{\partial}{\partial z}\left(\frac{P v y}{T}\right)
+                      - y\,\frac{\partial}{\partial z}\left(\frac{P v}{T}\right)
+                    \right) \\
+                &+ \phi \frac{T}{P}
+                    \left[
+                      (y-1)\frac{\partial x_1}{\partial t}
+                      + y\,\frac{\partial x_2}{\partial t}
+                    \right]
+              \end{aligned}
+            \]
+            <span class="eq-number">(3.3)</span>
+          </div>
+
+          <pre class="code-block hidden" data-code-id="code-y">
+<code># diffusion / dispersion
+dydt1[1:N+1] = (1/Pe) * (
+    d2ydz2[1:N+1]
+    + dydz[1:N+1]*dpdz[1:N+1]/P[1:N+1]
+    - dydz[1:N+1]*dTdz[1:N+1]/T[1:N+1]
+)
+
+# convection
+ypvt = yh * Ph * vh / Th
+dydt2[1:N+1] = -(T[1:N+1]/P[1:N+1]) * (
+    (ypvt[1:N+1] - ypvt[0:N])
+    - y[1:N+1]*(PvT[1:N+1] - PvT[0:N])
+) / dz
+
+# sorption coupling
+dydt3[1:N+1] = (phi*T[1:N+1]/P[1:N+1]) * (
+    (y[1:N+1] - 1)*dx1dt[1:N+1]
+    + y[1:N+1]*dx2dt[1:N+1]
+)
+
+dydt[1:N+1] = dydt1[1:N+1] + dydt2[1:N+1] + dydt3[1:N+1]</code>
+<div class="code-header">
+  <span>∂y/∂t</span>
+  <button class="toggle-code-btn" data-target="code-y">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+        </div>
+      </section>
+
+      <!-- 4. LDF -->
+      <section class="card" id="sec-ldf">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              4. LDF Solid-Phase Mass Transfer
+              <span class="badge-mini">x₁, x₂ dynamics</span>
+            </div>
+            <div class="card-subtitle">
+              Linear driving force (LDF) model for intraparticle mass transfer.
+            </div>
+          </div>
+          <div class="card-toggle-icon">&#9662;</div>
+        </div>
+        <div class="card-body">
+          <p>Dimensional LDF model for component \(i\):</p>
+          <div class="equation">
+            \[
+              \frac{\partial q_i}{\partial t}
+              = k_i \left(q_i^\*(P,y,T) - q_i\right)
+            \]
+            <span class="eq-number">(4.1)</span>
+          </div>
+          <p>
+            With \(x_i = q_i/q_{s0}\) and dimensionless time, this becomes:
+          </p>
+          <div class="equation">
+            \[
+              \frac{\partial x_i}{\partial t}
+              = k_i' \left(\hat{q_i^\*} - x_i\right),
+              \quad
+              k_i' = k_i \frac{L}{v_0},
+              \quad
+              \hat{q_i^\*} = \frac{q_i^\*}{q_{s0}}.
+            \]
+            <span class="eq-number">(4.2)</span>
+          </div>
+
+          <pre class="code-block hidden" data-code-id="code-ldf">
+<code>q = isotherm(y, P*P_0, T*T_0, isotherm_params)
+q_1 = q[0]*ro_s
+q_2 = q[1]*ro_s
+
+k_1 = k_1_LDF*L/v_0
+k_2 = k_2_LDF*L/v_0
+
+dx1dt[1:N+1] = k_1 * (q_1[1:N+1]/q_s0 - x1[1:N+1])
+dx2dt[1:N+1] = k_2 * (q_2[1:N+1]/q_s0 - x2[1:N+1])</code>
+<div class="code-header">
+  <span>ẋ</span>
+  <button class="toggle-code-btn" data-target="code-ldf">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+        </div>
+      </section>
+
+      <!-- 5. Energy -->
+      <section class="card" id="sec-energy">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              5. Energy Balance
+              <span class="badge-mini">Pseudo-homogeneous T(z,t)</span>
+            </div>
+            <div class="card-subtitle">
+              Conduction + gas enthalpy convection + heats of adsorption.
+            </div>
+          </div>
+          <div class="card-toggle-icon">&#9662;</div>
+        </div>
+        <div class="card-body">
+          <p>Apparent volumetric heat capacity (sink term):</p>
+          <pre class="code-block hidden" data-code-id="code-sink">
+<code>sink_term = (
+    (1-epsilon)*(ro_s*C_ps + q_s0*C_pa)
+    + epsilon*ro_g[1:N+1]*C_pg
+)</code>
+<div class="code-header">
+  <span>sink_term</span>
+  <button class="toggle-code-btn" data-target="code-sink">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <p>Dimensional energy balance (pseudo-homogeneous):</p>
+          <div class="equation">
+            \[
+              \big[(1-\varepsilon)(\rho_s C_{ps} + q_{s0} C_{pa})
+                + \varepsilon c_g C_{pg}\big]
+              \frac{\partial T}{\partial t}
+              + \varepsilon C_{pg} \frac{\partial (c_g v T)}{\partial z}
+              = K_z \frac{\partial^2 T}{\partial z^2}
+              + \sum_i (1-\varepsilon)(- \Delta H_i)\frac{\partial q_i}{\partial t}
+            \]
+            <span class="eq-number">(5.1)</span>
+          </div>
+
+          <p>The code splits the RHS into three contributions:</p>
+
+          <h4>(a) Axial conduction</h4>
+          <div class="equation">
+            \[
+              \frac{\partial T}{\partial t}\Big|_{\text{cond}}
+              = \frac{K_z}{v_0 L} \frac{1}{\text{sink\_term}}
+                \frac{\partial^2 T}{\partial z^2}
+            \]
+            <span class="eq-number">(5.2)</span>
+          </div>
+
+          <pre class="code-block hidden" data-code-id="code-T1">
+<code>transfer_term = K_z/v_0/L
+dTdt1[1:N+1] = transfer_term * d2Tdz2[1:N+1] / sink_term</code>
+<div class="code-header">
+  <span>Ṫ|cond</span>
+  <button class="toggle-code-btn" data-target="code-T1">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <h4>(b) Convective gas enthalpy</h4>
+          <div class="equation">
+            \[
+              \frac{\partial T}{\partial t}\Big|_{\text{conv}}
+              = -\frac{\varepsilon C_{pg} P_0}{R T_0\,\text{sink\_term}}
+                \left[
+                  \frac{(P v)_i - (P v)_{i-1}}{\Delta z}
+                  - T_i \frac{(P v/T)_i - (P v/T)_{i-1}}{\Delta z}
+                \right]
+            \]
+            <span class="eq-number">(5.3)</span>
+          </div>
+
+          <pre class="code-block hidden" data-code-id="code-T2">
+<code>PvT = Ph * vh / Th
+Pv  = Ph * vh
+
+dTdt2[1:N+1] = -epsilon*C_pg*P_0/R/T_0 * (
+    (Pv[1:N+1] - Pv[0:N])
+    - T[1:N+1]*(PvT[1:N+1] - PvT[0:N])
+) / dz / sink_term</code>
+<div class="code-header">
+  <span>Ṫ|conv</span>
+  <button class="toggle-code-btn" data-target="code-T2">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <h4>(c) Heat of adsorption</h4>
+          <pre class="code-block hidden" data-code-id="code-T3">
+<code>generation_term_1 = (1-epsilon)*q_s0*(-(deltaU_1 - R*T[1:N+1]*T_0))/T_0
+generation_term_2 = (1-epsilon)*q_s0*(-(deltaU_2 - R*T[1:N+1]*T_0))/T_0
+
+dTdt3[1:N+1] = (
+    generation_term_1*dx1dt[1:N+1]
+    + generation_term_2*dx2dt[1:N+1]
+) / sink_term</code>
+<div class="code-header">
+  <span>Ṫ|ads</span>
+  <button class="toggle-code-btn" data-target="code-T3">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <p>Conceptually:</p>
+          <div class="equation">
+            \[
+              \frac{\partial T}{\partial t}\Big|_{\text{ads}}
+              \approx
+              \frac{(1-\varepsilon) q_{s0}}{\text{sink\_term}}
+              \sum_i \left( -\frac{\Delta H_i}{T_0} \right)
+                \frac{\partial x_i}{\partial t}
+            \]
+            <span class="eq-number">(5.4)</span>
+          </div>
+
+          <p>Total energy equation:</p>
+          <pre class="code-block hidden" data-code-id="code-Tsum">
+<code>dTdt[1:N+1] = dTdt1[1:N+1] + dTdt2[1:N+1] + dTdt3[1:N+1]</code>
+<div class="code-header">
+  <span>Ṫ total</span>
+  <button class="toggle-code-btn" data-target="code-Tsum">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+        </div>
+      </section>
+
+      <!-- 6. Ergun -->
+      <section class="card" id="sec-ergun">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              6. Momentum &amp; Velocity
+              <span class="badge-mini">Ergun equation</span>
+            </div>
+            <div class="card-subtitle">
+              Local superficial velocity from the Ergun pressure-drop correlation.
+            </div>
+          </div>
+          <div class="card-toggle-icon">&#9662;</div>
+        </div>
+        <div class="card-body">
+          <p>Dimensional Ergun equation:</p>
+          <div class="equation">
+            \[
+              -\frac{\partial P}{\partial z}
+              =
+              \frac{150\mu (1-\varepsilon)^2}{d_p^2 \varepsilon^3} v
+              +
+              \frac{1.75 (1-\varepsilon)}{d_p \varepsilon^3}
+              \rho_g v |v|
+            \]
+            <span class="eq-number">(6.1)</span>
+          </div>
+
+          <p>
+            At each face, the code solves a quadratic in \(v\) derived from (6.1),
+            using the local pressure gradient and gas density.
+          </p>
+
+          <pre class="code-block hidden" data-code-id="code-ergun">
+<code>ro_gh = (P_0/R/T_0) * Ph / Th  # molar conc at faces
+
+viscous_term   = 150*mu*(1-epsilon)**2/4/r_p**2/epsilon**2
+kinetic_term_h = (ro_gh * (MW_N2 + (MW_CO2 - MW_N2)*yh)) \
+                 * (1.75*(1-epsilon)/2/r_p/epsilon)
+
+vh = -np.sign(dpdzh) * (
+        -viscous_term
+        + np.sqrt(viscous_term**2
+                  + 4*kinetic_term_h*np.abs(dpdzh)*P_0/L)
+     ) / (2*kinetic_term_h*v_0)</code>
+<div class="code-header">
+  <span>v(z)</span>
+  <button class="toggle-code-btn" data-target="code-ergun">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <p>
+            In compact form, this solves
+            \(\tfrac{P_0}{L}|\partial P/\partial z|
+              = a v + b v |v|\) for \(v\) and then scales to
+            \(v^* = v/v_0\).
+          </p>
+        </div>
+      </section>
+
+      <!-- 7. Isotherm -->
+      <section class="card" id="sec-isotherm">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              7. Isotherm Relation
+              <span class="badge-mini">q*(P, y, T)</span>
+            </div>
+            <div class="card-subtitle">
+              Equilibrium solid loading used as the driving force in the LDF model.
+            </div>
+          </div>
+          <div class="card-toggle-icon">&#9662;</div>
+        </div>
+        <div class="card-body">
+          <p>The model calls:</p>
+          <pre class="code-block hidden" data-code-id="code-iso">
+<code>q = isotherm(y, P*P_0, T*T_0, isotherm_params)</code>
+<div class="code-header">
+  <span>isotherm()</span>
+  <button class="toggle-code-btn" data-target="code-iso">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <p>
+            This returns equilibrium loadings \(q_1^\*, q_2^\*\) for two components. In many PSA codes this
+            is a dual-site Langmuir isotherm, e.g.:
+          </p>
+          <div class="equation">
+            \[
+              q_i^\*(P,y,T)
+              =
+              \sum_s q_{i,s}^{\text{sat}}(T)
+              \frac{b_{i,s}(T)\,P_i}{1+\sum_j b_{j,s}(T) P_j},
+              \quad
+              P_i = y_i P
+            \]
+            <span class="eq-number">(7.1)</span>
+          </div>
+          <p>
+            The exact formula depends on your <code>Isotherm.py</code>, but mathematically
+            it provides \(q_i^\*(P,y,T)\) to feed into the LDF equations.
+          </p>
+        </div>
+      </section>
+
+      <!-- 8. Numerics & BCs -->
+      <section class="card" id="sec-numerics">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              8. Numerics &amp; Boundary Conditions
+              <span class="badge-mini">WENO, central diff, BCs</span>
+            </div>
+            <div class="card-subtitle">
+              Discretisation of spatial derivatives and PSA-style boundary conditions.
+            </div>
+          </div>
+          <div class="card-toggle-icon">&#9662;</div>
+        </div>
+        <div class="card-body">
+          <h4>WENO for convective derivatives</h4>
+          <p>
+            For variables \(\phi \in \{P,y,T\}\), the code uses a WENO reconstruction to compute
+            face values and then:
+          </p>
+          <div class="equation">
+            \[
+              \left.\frac{\partial \phi}{\partial z}\right|_{z_i}
+              \approx \frac{\hat{\phi}_{i+1/2} - \hat{\phi}_{i-1/2}}{\Delta z}
+            \]
+            <span class="eq-number">(8.1)</span>
+          </div>
+          <pre class="code-block hidden" data-code-id="code-weno">
+<code>Ph = weno(P, 'upwind')
+dpdz[1:N+1] = (Ph[1:N+1] - Ph[0:N]) / dz</code>
+<div class="code-header">
+  <span>WENO</span>
+  <button class="toggle-code-btn" data-target="code-weno">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <h4>Central differences for diffusion</h4>
+          <div class="equation">
+            \[
+              \left.\frac{\partial^2 \phi}{\partial z^2}\right|_{z_i}
+              \approx \frac{\phi_{i+1} - 2\phi_i + \phi_{i-1}}{\Delta z^2}
+            \]
+            <span class="eq-number">(8.2)</span>
+          </div>
+
+          <pre class="code-block hidden" data-code-id="code-d2">
+<code>d2ydz2[2:N] = (y[3:N+1] + y[1:N-1] - 2*y[2:N]) / dz**2
+d2Tdz2[2:N] = (T[3:N+1] + T[1:N-1] - 2*T[2:N]) / dz**2</code>
+<div class="code-header">
+  <span>∂²/∂z²</span>
+  <button class="toggle-code-btn" data-target="code-d2">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+
+          <h4>Boundary conditions (conceptual)</h4>
+
+          <ul>
+            <li><strong>Heavy end (feed):</strong> Dirichlet for \(y\) and \(T\); either Dirichlet
+                or Ergun-consistent for \(P\) depending on whether inlet pressure or velocity is specified.</li>
+            <li><strong>Light end:</strong> Zero gradient for \(y\), \(T\), and a combination
+                of zero gradient / atmospheric clamp for \(P\).</li>
+          </ul>
+
+          <pre class="code-block hidden" data-code-id="code-bc">
+<code># heavy product end
+y[0] = y_0
+T[0] = 1.0
+# P[0] either set to P_inlet or computed via Ergun + prescribed v
+
+# light product end
+y[-1] = y[-2]
+T[-1] = T[-2]
+if P[-2] >= 1:
+    P[-1] = 1
+else:
+    P[-1] = P[-2]</code>
+<div class="code-header">
+  <span>BCs</span>
+  <button class="toggle-code-btn" data-target="code-bc">
+    <span>≡</span> toggle code
+  </button>
+</div>
+          </pre>
+        </div>
+      </section>
+
+      <!-- References -->
+      <section class="card" id="sec-refs">
+        <div class="card-header">
+          <div class="card-header-left">
+            <div class="card-title">
+              References
+              <span class="badge-mini">For derivations &amp; theory</span>
+            </div>
+            <div class="card-subtitle">
+              Standard PSA modelling references that match these equations.
+            </div>
+          </div>
+          <div class="card-toggle-icon">&#9662;</div>
+        </div>
+        <div class="card-body">
+          <ul class="ref-list">
+            <li>
+              S. T. Ruthven,
+              <em>Principles of Adsorption and Adsorption Processes</em>,
+              Wiley, 1984.
+            </li>
+            <li>
+              S. Farooq &amp; S. T. Ruthven,
+              “Analysis of non-isothermal PSA processes,”
+              <em>Chem. Eng. Sci.</em> 45 (1990) 1469–1476.
+            </li>
+            <li>
+              N. Wakao &amp; T. Funazkri,
+              “Effect of fluid dispersion coefficients on particle-to-fluid mass transfer coefficients,”
+              <em>Chem. Eng. Sci.</em> 33 (1978) 1375–1384.
+            </li>
+            <li>
+              H. Glueckauf,
+              “Theory of chromatography,”
+              <em>Trans. Faraday Soc.</em> 51 (1955) 1540–1551.
+            </li>
+          </ul>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Interactivity: collapsible cards, code toggles, active TOC -->
+  <script>
+    // Collapse/expand card sections
+    document.querySelectorAll('section.card').forEach(card => {
+      const header = card.querySelector('.card-header');
+      if (!header) return;
+      header.addEventListener('click', (e) => {
+        // Ignore clicks on code buttons
+        if (e.target.closest('.toggle-code-btn')) return;
+        card.classList.toggle('collapsed');
+      });
+    });
+
+    // Initially collapse references only (optional)
+    const refsCard = document.getElementById('sec-refs');
+    if (refsCard) refsCard.classList.add('collapsed');
+
+    // Code toggle buttons
+    document.querySelectorAll('.toggle-code-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const targetId = btn.getAttribute('data-target');
+        const block = document.querySelector(`.code-block[data-code-id="${targetId}"]`);
+        if (!block) return;
+        block.classList.toggle('hidden');
+      });
+    });
+
+    // Active TOC highlight on scroll
+    const sections = [...document.querySelectorAll('section.card[id]')];
+    const tocLinks = [...document.querySelectorAll('#toc a')];
+
+    function setActiveSection() {
+      const scrollPos = window.scrollY + 120;
+      let activeId = null;
+
+      for (const sec of sections) {
+        const rect = sec.getBoundingClientRect();
+        const top = rect.top + window.scrollY;
+        if (scrollPos >= top) {
+          activeId = sec.id;
+        }
+      }
+
+      tocLinks.forEach(link => {
+        const href = link.getAttribute('href') || '';
+        const id = href.replace('#', '');
+        if (id === activeId) {
+          link.classList.add('active');
+        } else {
+          link.classList.remove('active');
+        }
+      });
+    }
+
+    window.addEventListener('scroll', setActiveSection);
+    window.addEventListener('load', setActiveSection);
+  </script>
+</body>
+</html>
