@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Governing Equations for func_adsorption PSA Model</title>
+
+  <!-- Basic styling for readability -->
+  <style>
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.5;
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1rem 3rem;
+      background: #121212;
+      color: #e8e8e8;
+    }
+    h1, h2, h3, h4 {
+      color: #fff;
+    }
+    code {
+      font-family: "JetBrains Mono", "Fira Code", Consolas, monospace;
+      font-size: 0.9rem;
+      background: #1e1e1e;
+      padding: 0.15rem 0.30rem;
+      border-radius: 4px;
+    }
+    pre {
+      background: #1e1e1e;
+      padding: 1rem;
+      overflow-x: auto;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+    .equation {
+      margin: 1rem 0;
+      text-align: center;
+    }
+    .equation span.eq-number {
+      display: block;
+      font-size: 0.8rem;
+      color: #aaa;
+      margin-top: 0.25rem;
+    }
+    .small-note {
+      font-size: 0.9rem;
+      color: #ccc;
+    }
+    a {
+      color: #77b3ff;
+    }
+  </style>
+
+  <!-- MathJax for LaTeX equations -->
+  <script>
+    window.MathJax = {
+      tex: {
+        inlineMath: [['\\(','\\)'], ['$', '$']],
+        displayMath: [['\\[','\\]'], ['$$','$$']]
+      }
+    };
+  </script>
+  <script
+    id="MathJax-script"
+    async
+    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js">
+  </script>
+</head>
+
+<body>
+  <h1>Governing Equations Underlying <code>func_adsorption</code></h1>
+
+  <p>
+    This page explains the partial differential equations (PDEs) and algebraic relations
+    implemented by the Python function <code>func_adsorption</code> for a non-isothermal
+    PSA/adsorption step in a packed bed. The code couples:
+  </p>
+  <ul>
+    <li>Overall mass balance (pressure equation),</li>
+    <li>Component mass balance (mole fraction equation),</li>
+    <li>Solid-phase mass transfer (LDF model),</li>
+    <li>Energy balance (pseudo-homogeneous),</li>
+    <li>Momentum / pressure drop (Ergun equation),</li>
+    <li>An adsorption isotherm model.</li>
+  </ul>
+
+  <p class="small-note">
+    Standard references with essentially the same formulations:
+    <br />
+    S. T. Ruthven, <em>Principles of Adsorption and Adsorption Processes</em>, Wiley (1984);<br />
+    S. Farooq &amp; S. T. Ruthven, Chem. Eng. Sci. 45 (1990) 1469–1476;<br />
+    Wakao &amp; Funazkri, Chem. Eng. Sci. 33 (1978) 1375–1384.
+  </p>
+
+  <hr />
+
+  <h2>1. Variables, Scaling, and Dimensionless Groups</h2>
+
+  <h3>1.1. Dimensionless variables</h3>
+
+  <p>
+    The code works in dimensionless space and time. Let:
+  </p>
+
+  <div class="equation">
+    \[
+    z^* = \frac{z}{L}, \quad 0 \le z^* \le 1,
+    \qquad
+    t^* = \frac{v_0}{L}\, t
+    \]
+  </div>
+
+  <div class="equation">
+    \[
+    P^* = \frac{P}{P_0}, \qquad
+    T^* = \frac{T}{T_0}, \qquad
+    y = y_1 \;\; (\text{mole fraction of CO}_2),
+    \]
+    \[
+    x_i = \frac{q_i}{q_{s0}}, \quad i = 1,2
+    \]
+  </div>
+
+  <p>
+    The code variables <code>P</code>, <code>T</code>, <code>y</code>, <code>x1</code>, <code>x2</code> are
+    these dimensionless quantities (we drop the asterisks below for clarity).
+  </p>
+
+  <p>
+    Spatial discretisation in the code:
+  </p>
+
+  <pre><code class="language-python">dz = 1.0 / N</code></pre>
+
+  <p>
+    which corresponds to a uniform grid on \(z \in [0,1]\).
+  </p>
+
+  <h3>1.2. Axial dispersion and Peclet number</h3>
+
+  <p>The code computes:</p>
+
+  <pre><code class="language-python">D_l = 0.7*D_m + v_0*r_p
+Pe  = v_0*L/D_l</code></pre>
+
+  <p>
+    A typical correlation for axial dispersion in packed beds is:
+  </p>
+
+  <div class="equation">
+    \[
+    D_{\text{ax}} \approx 0.7\,D_m + \alpha v_0 d_p
+    \]
+  </div>
+
+  <p>
+    Here the code implicitly uses \(d_p \approx 2r_p\) and \(\alpha \approx 0.5\), giving the same order:
+    \(D_l \approx 0.7 D_m + v_0 r_p\). The dimensionless Peclet number is:
+  </p>
+
+  <div class="equation">
+    \[
+    \mathrm{Pe} = \frac{v_0 L}{D_l}
+    \quad \Longrightarrow \quad
+    \frac{1}{\mathrm{Pe}} = \frac{D_l}{v_0 L}
+    \]
+  </div>
+
+  <h3>1.3. Gas molar concentration</h3>
+
+  <pre><code class="language-python">ro_g = P*P_0/R/T/T_0</code></pre>
+
+  <p>
+    Using the ideal gas law \(c_g = P/(R T)\) with the scalings
+    \(P = P^* P_0\), \(T = T^* T_0\), we obtain:
+  </p>
+
+  <div class="equation">
+    \[
+    c_g = \frac{P}{R T}
+    = \frac{P^* P_0}{R T^* T_0}
+    \]
+  </div>
+
+  <p>
+    The code calls this <code>ro_g</code> but it is effectively the molar concentration \(c_g\) (mol/m³).
+  </p>
+
+  <h3>1.4. Solid/gas capacity ratio \(\phi\)</h3>
+
+  <pre><code class="language-python">phi = R*T_0*q_s0*(1-epsilon)/epsilon/P_0</code></pre>
+
+  <p>
+    Starting from the overall mass balance (Section 2.1) and nondimensionalising, one obtains the
+    dimensionless group:
+  </p>
+
+  <div class="equation">
+    \[
+    \phi = \frac{(1-\varepsilon) q_{s0} R T_0}{\varepsilon P_0}
+    \]
+  </div>
+
+  <p>
+    \(\phi\) measures how important solid-phase storage is compared to gas compressibility.
+  </p>
+
+  <h3>1.5. Reference molar flux</h3>
+
+  <pre><code class="language-python">ndot_0 = P_0/R/T_0*v_0</code></pre>
+
+  <p>
+    This is the reference molar flow per bed cross-section:
+  </p>
+
+  <div class="equation">
+    \[
+    \dot n_0 = c_0 v_0
+    = \frac{P_0}{R T_0} v_0
+    \]
+  </div>
+
+  <hr />
+
+  <h2>2. Governing PDEs: Continuous, Dimensionless Form</h2>
+
+  <p>
+    The code splits the right-hand side into pieces, but the underlying PDE system (in dimensionless form)
+    is as follows.
+  </p>
+
+  <h3>2.1. Overall mass balance &rarr; Pressure equation</h3>
+
+  <p>Physical (dimensional) 1D overall molar balance:</p>
+
+  <div class="equation">
+    \[
+    \varepsilon \frac{\partial c_g}{\partial t}
+    + (1-\varepsilon)\sum_{i=1}^2 \frac{\partial q_i}{\partial t}
+    + \frac{\partial (c_g v)}{\partial z} = 0
+    \tag{1}
+    \]
+  </div>
+
+  <p>
+    with \(c_g = P/(R T)\), \(q_i = q_{s0} x_i\).
+    After introducing dimensionless variables (Section 1) and eliminating \(c_g\), the code is implementing:
+  </p>
+
+  <div class="equation">
+    \[
+    \frac{\partial P}{\partial t}
+    =
+    - T \frac{\partial}{\partial z}\!\left(\frac{P v}{T}\right)
+    - \phi T \left(\frac{\partial x_1}{\partial t} + \frac{\partial x_2}{\partial t}\right)
+    + \frac{P}{T}\frac{\partial T}{\partial t}
+    \tag{2}
+    \]
+  </div>
+
+  <p>In the code this appears as:</p>
+
+  <pre><code class="language-python">PvT = Ph * vh / Th   # P*v/T at faces
+Pv  = Ph * vh        # P*v at faces
+
+dPdt1[1:N+1] = -T[1:N+1] * (PvT[1:N+1] - PvT[0:N]) / dz
+dPdt2[1:N+1] = -phi*T[1:N+1]*(dx1dt[1:N+1] + dx2dt[1:N+1])
+dPdt3[1:N+1] = P[1:N+1]*dTdt[1:N+1]/T[1:N+1]
+
+dPdt[1:N+1] = dPdt1[1:N+1] + dPdt2[1:N+1] + dPdt3[1:N+1]</code></pre>
+
+  <p>
+    This is the overall mass balance rewritten in terms of dimensionless pressure.
+  </p>
+
+  <h3>2.2. Component mass balance &rarr; Mole fraction equation</h3>
+
+  <p>Physical component balance for CO₂ (component 1):</p>
+
+  <div class="equation">
+    \[
+    \varepsilon \frac{\partial (c_g y)}{\partial t}
+    + (1-\varepsilon)\frac{\partial q_1}{\partial t}
+    + \frac{\partial N_1}{\partial z} = 0
+    \tag{3}
+    \]
+  </div>
+
+  <p>
+    with the axial flux (dispersion + convection):
+  </p>
+
+  <div class="equation">
+    \[
+    N_1 = c_g v y
+    - \varepsilon D_{\text{ax}}\frac{\partial (c_g y)}{\partial z}
+    \tag{4}
+    \]
+  </div>
+
+  <p>
+    Combining (3) with the overall balance (1) and using \(y_2 = 1-y\), then nondimensionalising, leads to
+    a PDE in terms of the mole fraction \(y\):
+  </p>
+
+  <div class="equation">
+    \[
+    \begin{aligned}
+    \frac{\partial y}{\partial t}
+    = \;& \frac{1}{\mathrm{Pe}}
+          \left[
+            \frac{\partial^2 y}{\partial z^2}
+            + \frac{\partial y}{\partial z} \frac{\partial \ln P}{\partial z}
+            - \frac{\partial y}{\partial z} \frac{\partial \ln T}{\partial z}
+          \right] \\
+      &- \frac{T}{P}
+          \left(
+            \frac{\partial}{\partial z}\left(\frac{P v y}{T}\right)
+            - y\,\frac{\partial}{\partial z}\left(\frac{P v}{T}\right)
+          \right) \\
+      &+ \phi \frac{T}{P}
+          \left[
+            (y-1)\frac{\partial x_1}{\partial t}
+            + y\,\frac{\partial x_2}{\partial t}
+          \right]
+    \end{aligned}
+    \tag{5}
+    \]
+  </div>
+
+  <p>In the code:</p>
+
+  <pre><code class="language-python"># diffusion / dispersion part
+dydt1[1:N+1] = (1/Pe) * (
+    d2ydz2[1:N+1]
+    + dydz[1:N+1]*dpdz[1:N+1]/P[1:N+1]
+    - dydz[1:N+1]*dTdz[1:N+1]/T[1:N+1]
+)
+
+# convective part
+ypvt = yh * Ph * vh / Th  # y*P*v/T at faces
+dydt2[1:N+1] = -(T[1:N+1]/P[1:N+1]) * (
+    (ypvt[1:N+1] - ypvt[0:N])
+    - y[1:N+1]*(PvT[1:N+1] - PvT[0:N])
+) / dz
+
+# sorption coupling part
+dydt3[1:N+1] = (phi*T[1:N+1]/P[1:N+1]) * (
+    (y[1:N+1] - 1)*dx1dt[1:N+1]
+    + y[1:N+1]*dx2dt[1:N+1]
+)
+
+dydt[1:N+1] = dydt1[1:N+1] + dydt2[1:N+1] + dydt3[1:N+1]</code></pre>
+
+  <p>
+    The first bracket is axial dispersion (with extra terms from variable \(P, T\)), the second is convection,
+    and the third accounts for changes in gas composition due to adsorption/desorption.
+  </p>
+
+  <h3>2.3. Solid-phase mass transfer (LDF model)</h3>
+
+  <p>Physical LDF model for each component \(i = 1,2\):</p>
+
+  <div class="equation">
+    \[
+    \frac{\partial q_i}{\partial t}
+    = k_i \left( q_i^\*(P,y,T) - q_i \right)
+    \tag{6}
+    \]
+  </div>
+
+  <p>
+    Defining \(x_i = q_i/q_{s0}\) and dimensionless time, we obtain:
+  </p>
+
+  <div class="equation">
+    \[
+    \frac{\partial x_i}{\partial t}
+    = k_i' \left( \hat{q_i^\*} - x_i \right),
+    \quad
+    k_i' = k_i \frac{L}{v_0},
+    \quad
+    \hat{q_i^\*} = \frac{q_i^\*}{q_{s0}}
+    \tag{7}
+    \]
+  </div>
+
+  <p>In the code:</p>
+
+  <pre><code class="language-python">q = isotherm(y, P*P_0, T*T_0, isotherm_params)  # q[0], q[1] = equilibrium loadings
+q_1 = q[0]*ro_s
+q_2 = q[1]*ro_s
+
+k_1 = k_1_LDF * L / v_0
+k_2 = k_2_LDF * L / v_0
+
+dx1dt[1:N+1] = k_1 * (q_1[1:N+1]/q_s0 - x1[1:N+1])
+dx2dt[1:N+1] = k_2 * (q_2[1:N+1]/q_s0 - x2[1:N+1])</code></pre>
+
+  <p>
+    These are exactly the LDF equations for the dimensionless solid loadings.
+  </p>
+
+  <h3>2.4. Energy balance &rarr; Column temperature equation</h3>
+
+  <p>
+    The code uses a pseudo-homogeneous energy balance (single temperature shared between gas and solid at each axial
+    location). The apparent volumetric heat capacity (called <code>sink_term</code>) is:
+  </p>
+
+  <pre><code class="language-python">sink_term = (
+    (1-epsilon)*(ro_s*C_ps + q_s0*C_pa)
+    + epsilon*ro_g[1:N+1]*C_pg
+)</code></pre>
+
+  <p>
+    Physical (dimensional) energy balance:
+  </p>
+
+  <div class="equation">
+    \[
+    \Big[(1-\varepsilon)(\rho_s C_{ps} + q_{s0} C_{pa})
+      + \varepsilon c_g C_{pg}\Big]
+    \frac{\partial T}{\partial t}
+    + \varepsilon C_{pg}\frac{\partial (c_g v T)}{\partial z}
+    = K_z \frac{\partial^2 T}{\partial z^2}
+    + \sum_i (1-\varepsilon)(- \Delta H_i)\frac{\partial q_i}{\partial t}
+    \tag{8}
+    \]
+  </div>
+
+  <p>
+    After nondimensionalisation and some algebra, the code splits the RHS into three parts:
+  </p>
+
+  <h4>(a) Axial conduction term</h4>
+
+  <pre><code class="language-python">transfer_term = K_z/v_0/L
+dTdt1[1:N+1] = transfer_term * d2Tdz2[1:N+1] / sink_term</code></pre>
+
+  <div class="equation">
+    \[
+    \frac{\partial T}{\partial t}\Big|_{\text{cond}}
+    = \frac{K_z}{v_0 L} \frac{1}{\text{sink\_term}}
+      \frac{\partial^2 T}{\partial z^2}
+    \tag{9}
+    \]
+  </div>
+
+  <h4>(b) Convective enthalpy term</h4>
+
+  <pre><code class="language-python">PvT = Ph * vh / Th
+Pv  = Ph * vh
+
+dTdt2[1:N+1] = -epsilon*C_pg*P_0/R/T_0 * (
+    (Pv[1:N+1] - Pv[0:N])
+    - T[1:N+1]*(PvT[1:N+1] - PvT[0:N])
+) / dz / sink_term</code></pre>
+
+  <div class="equation">
+    \[
+    \frac{\partial T}{\partial t}\Big|_{\text{conv}}
+    = -\frac{\varepsilon C_{pg} P_0}{R T_0\,\text{sink\_term}}
+      \left[
+        \frac{(P v)_{i} - (P v)_{i-1}}{\Delta z}
+        - T_i \frac{(P v/T)_{i} - (P v/T)_{i-1}}{\Delta z}
+      \right]
+    \tag{10}
+    \]
+  </div>
+
+  <h4>(c) Heat of adsorption term</h4>
+
+  <pre><code class="language-python">generation_term_1 = (1-epsilon)*q_s0*(-(deltaU_1 - R*T[1:N+1]*T_0))/T_0
+generation_term_2 = (1-epsilon)*q_s0*(-(deltaU_2 - R*T[1:N+1]*T_0))/T_0
+
+dTdt3[1:N+1] = (
+    generation_term_1*dx1dt[1:N+1]
+    + generation_term_2*dx2dt[1:N+1]
+) / sink_term</code></pre>
+
+  <p>
+    Using the relation between internal energy and enthalpy, this corresponds to a term of the form:
+  </p>
+
+  <div class="equation">
+    \[
+    \frac{\partial T}{\partial t}\Big|_{\text{ads}}
+    \approx
+    \frac{(1-\varepsilon) q_{s0}}{\text{sink\_term}}
+    \sum_i \left( -\frac{\Delta H_i}{T_0} \right)
+      \frac{\partial x_i}{\partial t}
+    \tag{11}
+    \]
+  </div>
+
+  <p>
+    The complete energy equation in the code is:
+  </p>
+
+  <pre><code class="language-python">dTdt[1:N+1] = dTdt1[1:N+1] + dTdt2[1:N+1] + dTdt3[1:N+1]</code></pre>
+
+  <hr />
+
+  <h2>3. Momentum Equation and Velocity (Ergun Equation)</h2>
+
+  <p>Physical Ergun equation:</p>
+
+  <div class="equation">
+    \[
+    -\frac{\partial P}{\partial z}
+    =
+    \frac{150\mu (1-\varepsilon)^2}{d_p^2 \varepsilon^3} v
+    +
+    \frac{1.75 (1-\varepsilon)}{d_p \varepsilon^3}
+    \rho_g v |v|
+    \tag{13}
+    \]
+  </div>
+
+  <p>
+    with \(d_p = 2r_p\). In the code this is rearranged to solve a quadratic for the local superficial
+    velocity at each face.
+  </p>
+
+  <pre><code class="language-python">ro_gh = (P_0/R/T_0) * Ph / Th  # molar conc at faces
+
+viscous_term   = 150*mu*(1-epsilon)**2/4/r_p**2/epsilon**2
+kinetic_term_h = (ro_gh * (MW_N2 + (MW_CO2 - MW_N2)*yh)) \
+                 * (1.75*(1-epsilon)/2/r_p/epsilon)
+
+vh = -np.sign(dpdzh) * (
+        -viscous_term
+        + np.sqrt(viscous_term**2
+                  + 4*kinetic_term_h*np.abs(dpdzh)*P_0/L)
+     ) / (2*kinetic_term_h*v_0)</code></pre>
+
+  <p>
+    In compact form, for each face:
+  </p>
+
+  <div class="equation">
+    \[
+    \frac{P_0}{L} \left|\frac{\partial P}{\partial z}\right|
+    = \text{viscous\_term}\, v
+      + \text{kinetic\_term}\, v |v|
+    \tag{14}
+    \]
+  </div>
+
+  <p>
+    Solving this quadratic and scaling with \(v_0\) gives the dimensionless velocity
+    \(v^* = v / v_0\), stored as <code>vh</code> in the code.
+  </p>
+
+  <p>
+    At the feed inlet, when velocity is specified, a similar half-cell Ergun relation is used to compute
+    <code>P[0]</code>. When pressure is specified, <code>P[0]</code> is set directly to <code>P_inlet</code>.
+  </p>
+
+  <hr />
+
+  <h2>4. Isotherm Equation</h2>
+
+  <p>
+    The call
+  </p>
+
+  <pre><code class="language-python">q = isotherm(y, P*P_0, T*T_0, isotherm_params)</code></pre>
+
+  <p>
+    returns equilibrium loadings \(q_1^\*, q_2^\*\) for two components. Without the <code>Isotherm.py</code>
+    file we cannot specify the exact formula, but in PSA codes this is most often a dual-site Langmuir,
+    extended Langmuir, or Sips isotherm, e.g. dual-site Langmuir:
+  </p>
+
+  <div class="equation">
+    \[
+    q_i^\*(P,y,T)
+    =
+    \sum_s q_{i,s}^{\text{sat}}(T)
+    \frac{b_{i,s}(T)\,P_i}{1+\sum_j b_{j,s}(T) P_j},
+    \quad
+    P_i = y_i P
+    \tag{16}
+    \]
+  </div>
+
+  <p>
+    These equilibrium loadings are fed into the LDF equations for \(x_1\) and \(x_2\).
+  </p>
+
+  <hr />
+
+  <h2>5. Spatial Discretisation</h2>
+
+  <h3>5.1. WENO for first derivatives (convective fluxes)</h3>
+
+  <p>
+    For variables like \(P, y, T\), the code uses a WENO reconstruction to compute face values:
+  </p>
+
+  <pre><code class="language-python">Ph = weno(P, 'upwind')
+dpdz[1:N+1] = (Ph[1:N+1] - Ph[0:N]) / dz</code></pre>
+
+  <p>
+    Conceptually:
+  </p>
+
+  <div class="equation">
+    \[
+    \left.\frac{\partial \phi}{\partial z}\right|_{z_i}
+    \approx \frac{\hat{\phi}_{i+1/2} - \hat{\phi}_{i-1/2}}{\Delta z}
+    \tag{17}
+    \]
+  </div>
+
+  <p>
+    where \(\hat{\phi}_{i+1/2}\) are WENO-reconstructed upwind face values. This is used for advective
+    (hyperbolic) terms to maintain accuracy and limit oscillations.
+  </p>
+
+  <h3>5.2. Central differences for second derivatives</h3>
+
+  <p>
+    Axial dispersion and heat conduction use central differences, e.g. for interior nodes:
+  </p>
+
+  <pre><code class="language-python">d2ydz2[2:N] = (y[3:N+1] + y[1:N-1] - 2*y[2:N]) / dz**2
+d2Tdz2[2:N] = (T[3:N+1] + T[1:N-1] - 2*T[2:N]) / dz**2</code></pre>
+
+  <p>
+    which corresponds to:
+  </p>
+
+  <div class="equation">
+    \[
+    \left.\frac{\partial^2 \phi}{\partial z^2}\right|_{z_i}
+    \approx \frac{\phi_{i+1} - 2\phi_i + \phi_{i-1}}{\Delta z^2}
+    \tag{18}
+    \]
+  </div>
+
+  <p>
+    One-sided modifications are used near boundaries to be consistent with the boundary conditions.
+  </p>
+
+  <hr />
+
+  <h2>6. Boundary Conditions</h2>
+
+  <h3>6.1. Heavy product end (\(z = 0\))</h3>
+
+  <pre><code class="language-python"># composition and temperature
+y[0] = y_0
+T[0] = 1.0
+
+# pressure: either specified or computed
+if params[-1] == 1:
+    P[0] = P_inlet            # pressure-specified
+elif params[-1] == 0:
+    # velocity-specified (compute P[0] via Ergun + ideal gas)
+    ...
+else:
+    raise ValueError(...)</code></pre>
+
+  <p>
+    So:
+  </p>
+  <ul>
+    <li><strong>Dirichlet</strong> at the inlet for \(y\) and \(T\).</li>
+    <li>Either Dirichlet or an Ergun-consistent condition for \(P\) depending on whether pressure or velocity is specified.</li>
+  </ul>
+
+  <h3>6.2. Light product end (\(z = 1\))</h3>
+
+  <pre><code class="language-python">y[-1] = y[-2]      # zero gradient
+T[-1] = T[-2]
+
+if P[-2] >= 1:
+    P[-1] = 1      # clamp to atmospheric
+else:
+    P[-1] = P[-2]  # zero gradient</code></pre>
+
+  <p>
+    This corresponds to:
+  </p>
+
+  <div class="equation">
+    \[
+    \left.\frac{\partial y}{\partial z}\right|_{z=1} \approx 0,
+    \quad
+    \left.\frac{\partial T}{\partial z}\right|_{z=1} \approx 0,
+    \]
+    \[
+    P(1,t) =
+    \begin{cases}
+      1, & P_{\text{interior}} \ge 1 \\
+      P_{\text{interior}}, & \text{otherwise}
+    \end{cases}
+    \]
+  </div>
+
+  <p>
+    At the end, the code also sets time-derivatives at boundaries:
+  </p>
+
+  <pre><code class="language-python">dPdt[0]  = 0
+dPdt[-1] = 0
+dydt[0]  = 0
+dydt[-1] = dydt[-2]
+dx1dt[0] = dx2dt[0] = 0
+dx1dt[-1] = dx2dt[-1] = 0
+dTdt[0] = 0
+dTdt[-1] = dTdt[-2]</code></pre>
+
+  <p>
+    These enforce no-flux / consistency with the imposed boundary conditions for the numerical solver.
+  </p>
+
+  <hr />
+
+  <h2>7. Summary: Mapping Code Terms to Equations</h2>
+
+  <ul>
+    <li>
+      <code>dPdt1</code> &rarr; convective part of overall mass balance:
+      \(-T \,\partial(P v/T)/\partial z\).
+    </li>
+    <li>
+      <code>dPdt2</code> &rarr; coupling of pressure to adsorbed-phase storage:
+      \(-\phi T (dx_1/dt + dx_2/dt)\).
+    </li>
+    <li>
+      <code>dPdt3</code> &rarr; compressibility term from \(P/T\): \((P/T) dT/dt\).
+    </li>
+    <li>
+      <code>dydt1</code> &rarr; axial dispersion + P,T-variation terms.
+    </li>
+    <li>
+      <code>dydt2</code> &rarr; convective part of component balance (conservative form).
+    </li>
+    <li>
+      <code>dydt3</code> &rarr; sorption coupling: effect of \(dx_1/dt, dx_2/dt\) on gas composition.
+    </li>
+    <li>
+      <code>dx1dt</code>, <code>dx2dt</code> &rarr; LDF equations for solid-phase mass transfer.
+    </li>
+    <li>
+      <code>dTdt1</code> &rarr; axial heat conduction.
+    </li>
+    <li>
+      <code>dTdt2</code> &rarr; gas-phase convective enthalpy transport.
+    </li>
+    <li>
+      <code>dTdt3</code> &rarr; heat of adsorption source term.
+    </li>
+    <li>
+      <code>vh</code> &rarr; local dimensionless gas velocity obtained from the Ergun equation.
+    </li>
+    <li>
+      <code>phi</code>, <code>Pe</code>, <code>ro_g</code>, <code>sink_term</code> &rarr;
+      dimensionless or combined parameters from nondimensionalisation.
+    </li>
+    <li>
+      <code>isotherm(...)</code> &rarr; equilibrium isotherm relation \(q_i^\*(P,y,T)\).
+    </li>
+  </ul>
+
+  <p class="small-note">
+    You can save this file as <code>equations.html</code> and open it in a browser.
+    MathJax will render all LaTeX equations nicely.
+  </p>
+
+</body>
+</html>
